@@ -396,3 +396,41 @@ Never:
 - expose private credentials
 - silently delete uncertain duplicates
 - perform unrelated giant rewrites
+
+---
+
+## D1 PROVISIONING — IN PROGRESS, BLOCKED ON NETWORK (2026-09-05)
+
+Task: provision the real `GMAIL_SCAN_STATE_DB` D1 database (see `src/lib/gmail/scanState.ts`
+and `src/lib/gmail/scanState.sql`). Nothing else was touched — no Gmail scan,
+no Sheets writes, no bank/SMS/classification changes.
+
+Done so far (on a machine behind a corporate VPN/proxy):
+1. `npx wrangler whoami` confirmed authenticated (account
+   `Chowdhuryswastick@gmail.com's Account`).
+2. `npx wrangler d1 create finance-tracker-gmail-scan-state` succeeded.
+   - database_name: `finance-tracker-gmail-scan-state`
+   - database_id: `99207ca2-d612-46d2-aa42-98ea65e261af`
+   - region: APAC
+3. `wrangler.jsonc` `d1_databases[0].database_id` updated from
+   `REPLACE_WITH_REAL_D1_DATABASE_ID` to the real id above. Binding name kept
+   as `GMAIL_SCAN_STATE_DB` (declined wrangler's suggested auto-binding name).
+
+Blocked:
+- `npx wrangler d1 execute finance-tracker-gmail-scan-state --remote --file=src/lib/gmail/scanState.sql`
+  fails after upload with `[ERROR] fetch failed`, preceded by wrangler's own
+  warning: "detected that a corporate proxy or VPN might be enabled on your
+  machine, resulting in API calls failing due to a certificate mismatch."
+  This is a local network/TLS issue, not a code or schema problem. Retried
+  twice, same failure both times.
+
+Remaining steps (do these next, from a network without the proxy/VPN issue):
+1. `npx wrangler d1 execute finance-tracker-gmail-scan-state --remote --file=src/lib/gmail/scanState.sql`
+2. Verify the table exists, e.g.:
+   `npx wrangler d1 execute finance-tracker-gmail-scan-state --remote --command "SELECT name FROM sqlite_master WHERE type='table' AND name='gmail_scan_state';"`
+3. Run lint, typecheck, all tests, and build.
+4. Commit and push only the D1 infra/config changes (`wrangler.jsonc`, this
+   file). Do not touch Gmail classification, bank ingestion, or SMS→Sheets
+   code.
+5. Report: database name, database id, migration result, binding,
+   verification output, commit hash, push result.

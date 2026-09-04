@@ -26,7 +26,7 @@
     {
       "binding": "GMAIL_SCAN_STATE_DB",
       "database_name": "finance-tracker-gmail-scan-state",
-      "database_id": "REPLACE_WITH_REAL_D1_DATABASE_ID"
+      "database_id": "99207ca2-d612-46d2-aa42-98ea65e261af"
     }
   ]
 }
