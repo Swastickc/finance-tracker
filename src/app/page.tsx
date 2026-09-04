@@ -6,7 +6,9 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { TransactionRow } from "@/components/transactions/TransactionRow";
+import { CategoryBreakdown } from "@/components/dashboard/CategoryBreakdown";
+import { IncomeTransferSummary } from "@/components/dashboard/IncomeTransferSummary";
+import { RecentTransactionsList } from "@/components/dashboard/RecentTransactionsList";
 
 export default async function OverviewPage() {
   const summary = await getMonthlySummary();
@@ -28,6 +30,8 @@ export default async function OverviewPage() {
             : undefined
         }
       />
+
+      <IncomeTransferSummary incomeTotal={summary.incomeTotal} transferTotal={summary.transferTotal} />
 
       <Card className="flex items-start gap-3 p-5">
         <Sparkles className="mt-0.5 flex-shrink-0 text-accent" size={20} aria-hidden="true" />
@@ -54,14 +58,7 @@ export default async function OverviewPage() {
 
       <section>
         <SectionHeading title="Categories" />
-        <Card className="divide-y divide-border">
-          {summary.categoryTotals.map((c) => (
-            <div key={c.category} className="flex items-center justify-between px-4 py-3">
-              <span className="text-[15px]">{c.category}</span>
-              <span className="text-[15px] font-medium tabular-nums">{formatCurrency(c.amount)}</span>
-            </div>
-          ))}
-        </Card>
+        <CategoryBreakdown categoryTotals={summary.categoryTotals} />
       </section>
 
       <section>
@@ -73,11 +70,7 @@ export default async function OverviewPage() {
             </Link>
           }
         />
-        <Card className="divide-y divide-border">
-          {summary.recentTransactions.map((t) => (
-            <TransactionRow key={t.id} transaction={t} />
-          ))}
-        </Card>
+        <RecentTransactionsList transactions={summary.recentTransactions} />
       </section>
     </div>
   );

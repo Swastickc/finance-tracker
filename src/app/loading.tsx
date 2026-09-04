@@ -13,6 +13,13 @@ export default function Loading() {
       <Card className="p-5">
         <Skeleton className="h-16 w-full" />
       </Card>
+      <div className="grid grid-cols-2 gap-3">
+        <Skeleton className="h-20 w-full rounded-[var(--radius-card)]" />
+        <Skeleton className="h-20 w-full rounded-[var(--radius-card)]" />
+      </div>
+      <Card className="p-5">
+        <Skeleton className="h-16 w-full" />
+      </Card>
       <div className="space-y-2">
         <Skeleton className="h-4 w-24" />
         <Card className="divide-y divide-border">
