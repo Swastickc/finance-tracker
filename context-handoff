@@ -1,0 +1,178 @@
+# Finance Tracker — Handoff
+
+## Repo
+GitHub: https://github.com/Swastickc/finance-tracker
+Branch: `main`
+
+This is a private personal finance portal: Apple-inspired, minimal, premium, mobile-first, React/Next.js TypeScript, Cloudflare Workers/OpenNext.
+
+## Critical architecture
+Historical:
+`Bank Statement #1 + Bank Statement #2 + historical Gmail → normalize → reconcile/dedupe → canonical dataset`
+
+Ongoing:
+`Existing SMS → Google Sheets + new Gmail → normalize → dedupe → canonical dataset`
+
+**DO NOT rebuild or replace the existing SMS → Google Sheets pipeline.**
+
+Exactly two historical bank statements:
+- `OpTransactionHistory04-09-2026.xls`
+- `Newopstrans.xls`
+
+`report.xlsx` is sender/activity metadata only, not transaction-level history.
+
+## Bank importer — REAL DATA PASSED
+Real local XLS files were validated without uploading/committing them.
+
+Both have 12 preamble rows; header is spreadsheet row 13. Header detection was fixed to scan for the 8 known labels.
+
+Results:
+- File A: 1,377 rows, 1,302 transactions, 62 malformed, 973 withdrawals, 329 deposits, date range 2025-09-01 → 2026-08-31.
+- File B: 176 rows, 129 transactions, 34 malformed, 88 withdrawals, 41 deposits, date range 2026-08-06 → 2026-09-04.
+- Combined: 1,431 normalized.
+- Exact duplicates: 108 (106 cross-file, 2 within-file).
+- Possible duplicates: 73 pairs (6 cross-file, 67 within-file).
+- Final active: 1,323.
+- Possible-duplicate participants remain Review; no possible duplicates were auto-ignored.
+- All exact duplicates matched date/amount/type/normalized remarks; 0 type mismatches.
+- Tests/lint/typecheck/build passed.
+- Bank/SMS architecture is approved.
+
+## Gmail parser
+Commit `9aed16d` implemented semantic classification and was pushed.
+
+Classification:
+1. OTP → NON_TRANSACTION
+2. Due reminder → NON_TRANSACTION
+3. Anchor-free promotional email → NON_TRANSACTION
+4. Credit-card payment received → transfer
+5. Refund → refund
+6. debited/spent/paid → expense
+7. credited/received → income, LOW confidence + review
+8. direction-neutral amount → UNKNOWN
+9. unanchored currency amount → UNKNOWN
+10. otherwise UNKNOWN
+
+OTP, due reminders and promotions are excluded. Credit-card payments cannot become income. Refund/transfer are distinct.
+
+Message ID is identity; thread ID is never used.
+
+Real Gmail has NOT been scanned yet. Mock tests passed.
+
+Known real-data risks to evaluate during the eventual read-only scan:
+- multiple anchors/amounts in one email may expose fixed anchor-priority behavior;
+- HTML-only templates may need better extraction.
+
+## Gmail timestamps
+Commit `75db6be` fixed Gmail date/time to `Asia/Kolkata` rather than slicing UTC output.
+7 timezone tests added.
+
+## D1 persistence
+KV was rejected for financial idempotency because it is eventually consistent and lacks an atomic claim.
+
+D1 implementation was committed/pushed as:
+`dc79e46` — `feat: use D1 for Gmail import idempotency`
+
+Current intended table:
+```sql
+CREATE TABLE IF NOT EXISTS gmail_scan_state (
+  message_id TEXT PRIMARY KEY,
+  state TEXT NOT NULL,
+  claimed_at TEXT,
+  imported_at TEXT
+);
+```
+
+Flow:
+`no row → pending → importing → imported`
+
+`ambiguous` is derived from an `importing` record older than 10 minutes. It is not automatically retried.
+
+Import flow:
+1. Filter eligible Gmail transaction items.
+2. Deduplicate by messageId.
+3. Atomically claim `pending → importing`.
+4. Send ONLY successfully claimed items to Google Sheets.
+5. On successful Sheets append → mark imported.
+6. On Sheets failure or finalization failure → leave importing.
+7. Stale importing becomes ambiguous/manual review; never auto-retry.
+
+72/72 tests passed at that stage; lint/typecheck/build passed.
+
+There is currently no real D1 database provisioned yet.
+
+## Cloudflare login
+The user has already completed:
+`npx wrangler login`
+in the browser.
+
+The VS Code window then broke/restarted. The next task is simply to provision the D1 database. Do NOT make the user repeat login unless `npx wrangler whoami` says unauthenticated.
+
+## IMMEDIATE NEXT TASK
+In the new VS Code/Copilot window, read this file first, then run:
+
+```bash
+npx wrangler whoami
+```
+
+If authenticated, continue:
+
+1. Verify `wrangler.jsonc` has binding `GMAIL_SCAN_STATE_DB`.
+2. Run:
+```bash
+npx wrangler d1 create GMAIL_SCAN_STATE_DB
+```
+3. Put the returned real `database_id` into `wrangler.jsonc`.
+4. Apply the existing `src/lib/gmail/scanState.sql` to the remote D1 database.
+5. Verify `gmail_scan_state` exists.
+6. Run lint, typecheck, tests and build.
+7. Commit and push ONLY the D1 infrastructure/config changes.
+
+Do NOT:
+- connect to Gmail
+- write to Google Sheets
+- modify bank ingestion
+- modify SMS → Google Sheets
+- modify Gmail classification/import logic
+- expose secrets or credentials
+- provision anything other than the required D1 database
+
+Report database name, database ID, migration result, binding, verification, commit hash and push result.
+
+## Exact prompt to paste into new Copilot chat
+```text
+Read CONTEXT_HANDOFF.md in the repo root before doing anything.
+
+We are continuing an existing finance-tracker build. Do NOT restart/re-audit the project.
+
+I already completed `npx wrangler login` in the browser.
+
+First run:
+npx wrangler whoami
+
+If authenticated, continue directly:
+1. Verify the existing GMAIL_SCAN_STATE_DB binding in wrangler.jsonc.
+2. Run `npx wrangler d1 create GMAIL_SCAN_STATE_DB`.
+3. Put the returned real database_id into wrangler.jsonc.
+4. Apply the existing src/lib/gmail/scanState.sql to the remote D1 database.
+5. Verify the gmail_scan_state table exists.
+6. Run lint, typecheck, all tests, and build.
+7. Commit and push only the D1 infrastructure/config changes.
+
+Do NOT:
+- connect to Gmail
+- write to Google Sheets
+- modify bank ingestion
+- modify SMS → Google Sheets
+- modify Gmail classification/import logic
+- expose secrets or credentials
+- provision anything other than the required D1 database
+
+Report database name, database ID, migration result, binding, verification, commit hash, and push result.
+Stop after this task.
+```
+
+## Safety
+Never commit `.xls`, `.xlsx`, Gmail exports, SMS dumps, `.env.local`, refresh tokens, API keys or other secrets. Real financial data stays private/local.
+
+Do not claim real Gmail validation until an actual read-only Gmail scan has occurred.
