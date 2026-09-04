@@ -1,20 +1,10 @@
 import { getTransactionProvider } from "@/lib/data/provider";
+import { monthKey, shiftMonthKey } from "@/lib/date";
 import type { Category, CategoryRule, ImportRecord, Transaction } from "@/lib/types";
 
 // Data-access layer: delegates to whichever TransactionProvider is active
 // (mock by default, Google Sheets when DATA_SOURCE=sheets — see
 // src/lib/data/provider.ts). UI code should only ever import from here.
-
-function monthKey(isoDate: string) {
-  return isoDate.slice(0, 7); // "YYYY-MM"
-}
-
-function previousMonthKey(key: string) {
-  const [year, month] = key.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, 1));
-  date.setUTCMonth(date.getUTCMonth() - 1);
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-}
 
 export async function getTransactions(): Promise<Transaction[]> {
   const all = await getTransactionProvider().listTransactions();
@@ -55,7 +45,7 @@ export interface MonthlySummary {
 export async function getMonthlySummary(referenceMonthKey?: string): Promise<MonthlySummary> {
   const all = await getTransactions();
   const currentKey = referenceMonthKey ?? monthKey(all[0]?.transactionDate ?? new Date().toISOString());
-  const previousKey = previousMonthKey(currentKey);
+  const previousKey = shiftMonthKey(currentKey, -1);
 
   const spend = (txns: Transaction[]) => {
     const expense = txns.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
