@@ -44,3 +44,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# real personal financial data — never commit (project-spec-truth.md "REAL DATA SAFETY")
+*.xls
+*.xlsx
+!**/fixtures/**/*.xls
+!**/fixtures/**/*.xlsx
+/data/
+/uploads/
+*.mbox
+*sms-dump*
+*gmail-export*

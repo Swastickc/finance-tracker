@@ -32,6 +32,7 @@ npm run dev       # start dev server
 npm run build     # production build
 npm run lint      # ESLint
 npx tsc --noEmit  # type-check
+npm test          # Vitest — deterministic parser/reconciliation tests
 ```
 
 ## Project structure
@@ -53,46 +54,60 @@ src/
       provider.ts         # picks mock vs. Google Sheets via DATA_SOURCE
       providers/          # MockTransactionProvider, GoogleSheetsTransactionProvider
     sheets/               # Sheets REST client, service-account auth, row mapping
-    gmail/                # Gmail OAuth client, semantic-anchor parser, SCAN/DRY RUN/IMPORT providers
+    gmail/                # Gmail OAuth client, semantic-anchor parser, SCAN/DRY RUN/IMPORT providers,
+                          # scanState.ts (incremental-scan message tracking)
+    bank/                 # bank-statement importer: xlsx reader, date/row parser, normalizer,
+                          # overlap reconciliation, upload/dry-run/import server actions
+    sms/                  # classifySmsText: deterministic TRANSACTION/NON_TRANSACTION/UNKNOWN
+                          # classifier (OTP, due reminders, credit-card payments, etc.)
+    canonical/             # cross-source dedup (findCrossSourceDuplicates), shared app-owned
+                          # sheet schema (transactionToRow/rowToTransaction)
     data/analytics.ts     # deterministic trends/category/merchant/income/recurring aggregation
+    data/dataQuality.ts   # deterministic Data Quality diagnostics
     ai/                   # context builder (redacted metrics), AIProvider abstraction + 4 providers
     auth/                 # password gate: signed session tokens, login/logout actions
     rateLimit.ts, requestIdentity.ts
     date.ts, format.ts, cn.ts, nav.ts
 src/proxy.ts             # auth gate (Next.js "proxy"/middleware convention)
 open-next.config.ts, wrangler.jsonc  # Cloudflare Workers deployment (OpenNext)
+vitest.config.mts        # test runner config (src/**/*.test.ts)
 ```
 
 ## Status
 
-Phases 0–9 are complete: frontend foundation, dashboard, transactions (search/
-filter/sort/edit), review queue (confirm/edit/rule creation/ignore), a Google
-Sheets data-access layer, a Gmail historical importer (SCAN/DRY RUN/IMPORT),
-analytics (spending trend, category/merchant month-over-month, income,
-transfers, recurring-expense detection), Finance AI (deterministic metrics →
-redacted context → provider-abstracted insight/Q&A), and production hardening:
+Phases 0–9 are complete, plus a real-data-integration pass:
 
-- **Auth**: optional password gate (`APP_ACCESS_PASSWORD` + `SESSION_SECRET`),
-  signed stateless session cookie, no-op when unset (tested both states).
-- **Security headers**: CSP, `X-Frame-Options: DENY`, `nosniff`,
-  `Referrer-Policy`, `Permissions-Policy` (verified on live responses).
-- **Rate limiting**: in-memory sliding window on the Ask-AI and Gmail
-  import actions (per-instance only — not distributed across edge isolates).
-- **Input validation**: length caps on free-text fields and AI questions.
-- **Error handling**: root `error.tsx` + `global-error.tsx` (root-layout
-  crashes), Gmail/AI server actions return errors instead of throwing.
-- **Accessibility**: skip-to-content link, `aria-label`s throughout,
-  `prefers-reduced-motion` support, visible focus rings.
-- **Cloudflare deployment**: builds successfully via `@opennextjs/cloudflare`
-  (verified with `npm run cf:build`); `@cloudflare/next-on-pages` was tried
-  first but doesn't support Next.js 16 yet, so the Workers AI provider
-  (`AI_PROVIDER=cloudflare`) remains stubbed.
+- **Bank statement import**: upload .xls/.xlsx (known 8-column schema:
+  S No./Value Date/Transaction Date/Cheque Number/Transaction Remarks/
+  Withdrawal/Deposit/Balance), parsed and reconciled before writing, dry-run
+  preview, conservative overlap detection across statements (exact match =
+  auto-ignored but retained; ambiguous match = flagged, never deleted).
+  Deposits are never auto-classified as income (project-spec-truth.md rule);
+  they're a low-confidence placeholder that always needs Review.
+- **SMS semantic classifier** (`src/lib/sms/classify.ts`): deterministic
+  TRANSACTION/NON_TRANSACTION/UNKNOWN classification tested against the 6
+  literal SMS examples from project-spec-truth.md (ICICI debit/credit, HDFC
+  purchase/OTP/credit-card-payment/due-reminder) — OTPs and due reminders are
+  correctly excluded, credit-card payments are transfers not income.
+- **Cross-source deduplication** (`src/lib/canonical/reconcile.ts`): flags
+  same date+amount transactions across bank/SMS/Gmail as possible duplicates
+  without ever merging or deleting; surfaced in the new Data Quality page.
+- **Gmail incremental scanning**: SCAN now reports which messages are new
+  vs. previously seen (in-memory only — see code comments for the
+  production-persistence gap).
+- **Tests**: 32 Vitest tests (`npm test`) covering all 15 required scenarios
+  (SMS classification ×6, OTP+purchase dedup, bank-statement overlap,
+  bank+Gmail dup, bank+SMS dup, own-account transfer, refund, unknown SMS,
+  unknown Gmail, malformed row).
 
+Earlier phases (frontend, dashboard, transactions, review, analytics,
+Finance AI, auth/security hardening, Cloudflare deployment) are unchanged.
 The default AI provider is a template (no API key, cannot hallucinate);
 `openai`/`gemini` are implemented and just need an API key. The Sheets read
-path and Gmail importer are scaffolded but unverified against real
-credentials/inboxes (mock remains the default for both). See
-`PROJECT_SPEC.md` §28 for the phase plan.
+path, Gmail importer, and bank importer are all real, tested code but
+unverified against actual credentials/inboxes/statement files — none were
+available in this environment (mock remains the default for all three). See
+`PROJECT_SPEC.md` §28 and `project-spec-truth.md` for the full requirements.
 
 ## Environment variables
 

@@ -2,7 +2,8 @@ import { buildScanQuery } from "@/lib/gmail/known-senders";
 import { getMessage, getMessageMetadata, listMessageIds } from "@/lib/gmail/client";
 import { parseEmail } from "@/lib/gmail/parse";
 import { appendSheetValues } from "@/lib/sheets/client";
-import { transactionToRow } from "@/lib/gmail/sheetSchema";
+import { transactionToRow } from "@/lib/canonical/sheetSchema";
+import { isNewMessage, markImported, markPending } from "@/lib/gmail/scanState";
 import type { Transaction } from "@/lib/types";
 import type { DryRunItem, DryRunResult, ImportOutcome, ScanResult } from "@/lib/gmail/types";
 import type { GmailImporter } from "@/lib/gmail/providers/types";
@@ -31,6 +32,9 @@ export class LiveGmailImporter implements GmailImporter {
       }
     }
 
+    const newMessageIds = ids.filter(isNewMessage);
+    markPending(ids); // seen from now on, but still revisitable via dry-run/import
+
     return {
       scannedAt: new Date().toISOString(),
       messagesFound: ids.length,
@@ -40,6 +44,7 @@ export class LiveGmailImporter implements GmailImporter {
       dateRangeStart: earliest,
       dateRangeEnd: latest,
       candidateMessageIds: ids,
+      newMessageIds,
     };
   }
 
@@ -98,6 +103,7 @@ export class LiveGmailImporter implements GmailImporter {
     if (rows.length > 0) {
       try {
         await appendSheetValues(GMAIL_IMPORT_RANGE, rows.map(transactionToRow));
+        markImported(rows.map((r) => r.sourceMessageId!));
       } catch {
         errors = rows.length;
       }

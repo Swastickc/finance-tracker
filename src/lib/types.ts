@@ -55,6 +55,16 @@ export interface Transaction {
   confidence: number; // 0..1
   isRecurring: boolean;
   ruleId: string | null;
+  /**
+   * Human-readable provenance: which parser produced this row and why it was
+   * classified as its `type` (e.g. "bank-statement-parser: withdrawal column
+   * present", "sms-classifier: matched anchor \"debited\"" ). Optional/additive
+   * — added for the real-data-integration phase so every normalized
+   * transaction can answer "why was this classified this way", per
+   * project-spec-truth.md provenance requirements, without inventing a
+   * competing schema or breaking existing Transaction construction sites.
+   */
+  classificationNote?: string | null;
   createdAt: string; // ISO datetime
   updatedAt: string; // ISO datetime
 }
@@ -82,6 +92,10 @@ export interface ImportRecord {
   transactionsDetected: number;
   transactionsImported: number;
   duplicates: number;
+  /** Same-source-or-cross-source candidates that weren't confident enough to auto-resolve (kept, flagged for Review). */
+  possibleDuplicates?: number;
+  /** Rows detected but deliberately not imported (e.g. OTP/non-transaction SMS, malformed rows) — not an error. */
+  ignoredRecords?: number;
   errors: number;
   status: ImportStatus;
 }

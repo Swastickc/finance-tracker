@@ -53,6 +53,8 @@ export class MockGmailImporter implements GmailImporter {
       dateRangeStart: "2025-08-01",
       dateRangeEnd: "2025-08-13",
       candidateMessageIds: FIXTURE_EMAILS.map((e) => e.id),
+      // Mock has no real incremental tracking — every scan reports all fixtures as new.
+      newMessageIds: FIXTURE_EMAILS.map((e) => e.id),
     };
   }
 

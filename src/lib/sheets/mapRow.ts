@@ -1,4 +1,5 @@
 import { CATEGORIES, type Category, type Transaction } from "@/lib/types";
+import { classifySmsText } from "@/lib/sms/classify";
 
 /**
  * The real spreadsheet (confirmed by the user, 2026-09-04) has NO header
@@ -66,6 +67,17 @@ export function mapRowsToTransactions(rows: string[][]): MapRowsResult {
 
     const timestamp = `${parsed.date}T${parsed.time}:00Z`;
 
+    // Defensive secondary check: this 4-column dump is already a reduced/
+    // pre-filtered view (not raw SMS bodies), so classifySmsText() rarely
+    // matches anything here — but if the payee/note text ever contains an
+    // unambiguous non-transaction signal (OTP, due reminder), don't import
+    // it as a false expense. Does NOT change the existing pipeline/schema.
+    const secondaryCheck = classifySmsText([payee, note].filter(Boolean).join(" "));
+    if (secondaryCheck.classification === "NON_TRANSACTION") {
+      warnings.push(`Row ${rowNumber}: looks like a non-transaction message (${secondaryCheck.reason}) — skipped.`);
+      return;
+    }
+
     transactions.push({
       id: `sheet-row-${rowNumber}`,
       transactionDate: parsed.date,
@@ -85,6 +97,7 @@ export function mapRowsToTransactions(rows: string[][]): MapRowsResult {
       confidence: IMPORTED_ROW_CONFIDENCE,
       isRecurring: false,
       ruleId: null,
+      classificationNote: "sheets-mapper: 4-column SMS dump, positional (see file header comment); type defaulted to expense",
       createdAt: timestamp,
       updatedAt: timestamp,
     });

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SOURCE_LABEL } from "@/lib/labels";
 import { GmailImportPanel } from "@/components/import/GmailImportPanel";
+import { BankImportPanel } from "@/components/import/BankImportPanel";
 import { History } from "lucide-react";
 
 export default async function ImportHistoryPage() {
@@ -12,6 +13,7 @@ export default async function ImportHistoryPage() {
   return (
     <div className="space-y-6">
       <h1 className="px-1 text-[28px] font-semibold tracking-tight">Import History</h1>
+      <BankImportPanel />
       <GmailImportPanel />
       {imports.length === 0 ? (
         <EmptyState icon={<History size={28} />} title="No imports yet" description="Gmail and SMS import runs will be tracked here." />
@@ -20,7 +22,9 @@ export default async function ImportHistoryPage() {
           {imports.map((imp) => (
             <Card key={imp.importId} className="p-4">
               <div className="flex items-center justify-between">
-                <p className="text-[15px] font-semibold">{SOURCE_LABEL[imp.source]} Import</p>
+                <p className="text-[15px] font-semibold">
+                  {imp.source === "import" ? "Bank Statement" : SOURCE_LABEL[imp.source]} Import
+                </p>
                 <Badge tone={imp.status === "completed" ? "success" : imp.status === "failed" ? "danger" : "neutral"}>
                   {imp.status}
                 </Badge>

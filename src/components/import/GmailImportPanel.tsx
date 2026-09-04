@@ -42,7 +42,8 @@ export function GmailImportPanel() {
     setStep("running-dry-run");
     setError(null);
     try {
-      const batch = scanResult.candidateMessageIds.slice(0, DRY_RUN_BATCH_SIZE);
+      const candidates = scanResult.newMessageIds.length > 0 ? scanResult.newMessageIds : scanResult.candidateMessageIds;
+      const batch = candidates.slice(0, DRY_RUN_BATCH_SIZE);
       const result = await dryRunGmailAction(batch);
       setItems(result.items);
       setSelected(new Set(result.items.filter((i) => i.confidence !== "low").map((i) => i.messageId)));
@@ -114,7 +115,9 @@ export function GmailImportPanel() {
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
           <div>
             <p className="text-muted">Messages found</p>
-            <p className="font-medium tabular-nums">{scanResult.messagesFound}</p>
+            <p className="font-medium tabular-nums">
+              {scanResult.messagesFound} <span className="text-muted">({scanResult.newMessageIds.length} new)</span>
+            </p>
           </div>
           <div>
             <p className="text-muted">Date range</p>

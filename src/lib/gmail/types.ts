@@ -15,6 +15,8 @@ export interface ScanResult {
   dateRangeEnd: string | null;
   /** Message IDs to hand to dryRun(); kept small and paged in the live provider. */
   candidateMessageIds: string[];
+  /** Subset of candidateMessageIds never seen by a previous scan (project-spec-truth.md §"ONGOING GMAIL"). */
+  newMessageIds: string[];
 }
 
 export type DryRunConfidence = "high" | "medium" | "low";
