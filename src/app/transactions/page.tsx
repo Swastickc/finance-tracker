@@ -1,15 +1,13 @@
-import { Receipt } from "lucide-react";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { getTransactions } from "@/lib/data/transactions";
+import { TransactionsView } from "@/components/transactions/TransactionsView";
 
-export default function TransactionsPage() {
+export default async function TransactionsPage() {
+  const transactions = await getTransactions();
+
   return (
     <div className="space-y-6">
       <h1 className="px-1 text-[28px] font-semibold tracking-tight">Transactions</h1>
-      <EmptyState
-        icon={<Receipt size={28} />}
-        title="Transaction history is coming soon"
-        description="Search, filters, and the full transaction list will appear here once connected to real data."
-      />
+      <TransactionsView initialTransactions={transactions} />
     </div>
   );
 }

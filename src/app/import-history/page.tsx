@@ -2,9 +2,8 @@ import { getImportHistory } from "@/lib/data/transactions";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { SOURCE_LABEL } from "@/lib/labels";
 import { History } from "lucide-react";
-
-const SOURCE_LABEL: Record<string, string> = { sms: "SMS", gmail: "Gmail", manual: "Manual", import: "Import" };
 
 export default async function ImportHistoryPage() {
   const imports = await getImportHistory();

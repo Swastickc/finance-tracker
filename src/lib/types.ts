@@ -1,10 +1,13 @@
 // Unified, source-agnostic transaction schema (see PROJECT_SPEC.md §5).
 
 export type TransactionType = "expense" | "income" | "refund" | "transfer";
+export const TRANSACTION_TYPES: TransactionType[] = ["expense", "income", "refund", "transfer"];
 
 export type TransactionSource = "sms" | "gmail" | "manual" | "import";
+export const TRANSACTION_SOURCES: TransactionSource[] = ["sms", "gmail", "manual", "import"];
 
 export type TransactionStatus = "confirmed" | "review" | "ignored";
+export const TRANSACTION_STATUSES: TransactionStatus[] = ["confirmed", "review", "ignored"];
 
 export type Category =
   | "Food"
@@ -18,6 +21,20 @@ export type Category =
   | "Salary"
   | "Other"
   | "Uncategorized";
+
+export const CATEGORIES: Category[] = [
+  "Food",
+  "Transport",
+  "Shopping",
+  "Bills",
+  "Entertainment",
+  "Health",
+  "Travel",
+  "Subscriptions",
+  "Salary",
+  "Other",
+  "Uncategorized",
+];
 
 export interface Transaction {
   id: string;

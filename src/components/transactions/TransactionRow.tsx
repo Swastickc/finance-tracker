@@ -1,14 +1,8 @@
 import type { Transaction } from "@/lib/types";
 import { formatRelativeDate, formatSignedCurrency } from "@/lib/format";
+import { SOURCE_LABEL } from "@/lib/labels";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/cn";
-
-const SOURCE_LABEL: Record<Transaction["source"], string> = {
-  sms: "SMS",
-  gmail: "Gmail",
-  manual: "Manual",
-  import: "Import",
-};
 
 export function TransactionRow({ transaction }: { transaction: Transaction }) {
   const isInflow = transaction.type === "income" || transaction.type === "refund";
