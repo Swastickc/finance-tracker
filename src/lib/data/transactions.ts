@@ -1,9 +1,9 @@
-import { mockCategoryRules, mockImportHistory, mockTransactions } from "@/lib/mock-data";
+import { getTransactionProvider } from "@/lib/data/provider";
 import type { Category, CategoryRule, ImportRecord, Transaction } from "@/lib/types";
 
-// Data-access layer: today this reads mock data, later it reads Google
-// Sheets/Gmail/SMS sources. UI code should only ever import from here, never
-// from `mock-data` directly, so swapping the backend needs no UI changes.
+// Data-access layer: delegates to whichever TransactionProvider is active
+// (mock by default, Google Sheets when DATA_SOURCE=sheets — see
+// src/lib/data/provider.ts). UI code should only ever import from here.
 
 function monthKey(isoDate: string) {
   return isoDate.slice(0, 7); // "YYYY-MM"
@@ -17,7 +17,8 @@ function previousMonthKey(key: string) {
 }
 
 export async function getTransactions(): Promise<Transaction[]> {
-  return [...mockTransactions].sort((a, b) =>
+  const all = await getTransactionProvider().listTransactions();
+  return [...all].sort((a, b) =>
     `${b.transactionDate}T${b.transactionTime ?? "00:00"}`.localeCompare(
       `${a.transactionDate}T${a.transactionTime ?? "00:00"}`
     )
@@ -25,11 +26,11 @@ export async function getTransactions(): Promise<Transaction[]> {
 }
 
 export async function getCategoryRules(): Promise<CategoryRule[]> {
-  return mockCategoryRules;
+  return getTransactionProvider().listCategoryRules();
 }
 
 export async function getImportHistory(): Promise<ImportRecord[]> {
-  return mockImportHistory;
+  return getTransactionProvider().listImportHistory();
 }
 
 export interface CategoryTotal {
