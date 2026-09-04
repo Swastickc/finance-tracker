@@ -40,6 +40,7 @@ export const mockTransactions: Transaction[] = [
   tx({ id: "t-0913", transactionDate: "2026-09-03", transactionTime: "16:40", amount: 899, type: "refund", merchant: "Flipkart", rawDescription: "Rs.899.00 refunded by FLIPKART INTERNET PVT LTD", category: "Shopping" }),
   tx({ id: "t-0914", transactionDate: "2026-09-04", transactionTime: "06:30", amount: 450, type: "expense", merchant: "Ola Cabs", rawDescription: "Rs.450.00 debited for OLA CABS TRIP", category: "Transport", subcategory: "Cab" }),
   tx({ id: "t-0915", transactionDate: "2026-08-30", transactionTime: "21:00", amount: 199, type: "expense", merchant: "Stake", rawDescription: "Rs.199.00 debited for STAKE.COM", category: "Entertainment", status: "review", confidence: 0.5 }),
+  tx({ id: "t-0916", transactionDate: "2026-09-02", transactionTime: "12:07", amount: 899, type: "expense", merchant: "Zomato", rawDescription: "Your Zomato order for Rs.899 has been placed and is on its way", category: "Food", subcategory: "Delivery", source: "gmail", sourceMessageId: "gmail-msg-8831", confidence: 0.8, status: "review" }),
 
   // -- August 2026 (previous month, for comparison) --
   tx({ id: "t-0820", transactionDate: "2026-08-28", transactionTime: "13:00", amount: 1299, type: "expense", merchant: "Amazon", rawDescription: "Rs.1299.00 debited for AMAZON.IN via UPI", category: "Shopping", ruleId: "r-amazon" }),

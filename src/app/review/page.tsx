@@ -1,15 +1,13 @@
-import { CheckCircle2 } from "lucide-react";
-import { EmptyState } from "@/components/ui/EmptyState";
+import { getTransactions, getCategoryRules } from "@/lib/data/transactions";
+import { ReviewQueueView } from "@/components/review/ReviewQueueView";
 
-export default function ReviewPage() {
+export default async function ReviewPage() {
+  const [transactions, rules] = await Promise.all([getTransactions(), getCategoryRules()]);
+
   return (
     <div className="space-y-6">
       <h1 className="px-1 text-[28px] font-semibold tracking-tight">Review</h1>
-      <EmptyState
-        icon={<CheckCircle2 size={28} />}
-        title="Nothing to review yet"
-        description="Unknown merchants, low-confidence imports, and possible duplicates will show up here for quick confirmation."
-      />
+      <ReviewQueueView initialTransactions={transactions} initialRules={rules} />
     </div>
   );
 }

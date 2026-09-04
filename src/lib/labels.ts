@@ -1,4 +1,5 @@
 import type { TransactionSource, TransactionStatus, TransactionType } from "@/lib/types";
+import type { ReviewReason } from "@/lib/review";
 
 export const SOURCE_LABEL: Record<TransactionSource, string> = {
   sms: "SMS",
@@ -19,3 +20,11 @@ export const TYPE_LABEL: Record<TransactionType, string> = {
   refund: "Refund",
   transfer: "Transfer",
 };
+
+export const REVIEW_REASON_LABEL: Record<ReviewReason, string> = {
+  unknown_merchant: "Unknown merchant",
+  uncategorized: "Uncategorized",
+  low_confidence: "Low-confidence parsing",
+  possible_duplicate: "Possible duplicate",
+};
+
