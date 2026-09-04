@@ -33,6 +33,7 @@ export const AMOUNT_ANCHORS = [
   "received",
   "transaction amount",
   "total amount",
+  "refund",
 ] as const;
 
 /** Gmail search query for SCAN — broad on purpose; DRY RUN does the real filtering. */

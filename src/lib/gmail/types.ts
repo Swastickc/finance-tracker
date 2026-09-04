@@ -21,22 +21,34 @@ export interface ScanResult {
 
 export type DryRunConfidence = "high" | "medium" | "low";
 
+export type GmailClassification = "TRANSACTION" | "NON_TRANSACTION" | "UNKNOWN";
+
+export type NonTransactionReason = "otp" | "due_reminder" | "promotional" | null;
+
 export interface DryRunItem {
   messageId: string;
   sender: string;
   subject: string;
   date: string;
+  classification: GmailClassification;
+  nonTransactionReason: NonTransactionReason;
   detectedAmount: number | null;
   merchant: string | null;
-  type: "expense" | "income" | "refund" | null;
+  type: "expense" | "income" | "refund" | "transfer" | null;
   category: string | null;
   confidence: DryRunConfidence;
+  /** Human-readable — feeds Transaction.classificationNote on import. */
+  classificationNote: string;
+  /** Set when another item in the same dry-run batch shares date+amount+merchant (project-spec-truth.md: duplicate notifications for the same transaction). */
+  possibleDuplicateOfMessageId: string | null;
   warnings: string[];
 }
 
 export interface DryRunResult {
   runAt: string;
   items: DryRunItem[];
+  /** Messages that failed to fetch/parse entirely (e.g. Gmail API errors) — distinct from NON_TRANSACTION/UNKNOWN classification. */
+  parserFailureCount: number;
 }
 
 export interface ImportOutcome {

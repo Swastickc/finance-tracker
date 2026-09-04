@@ -13,6 +13,10 @@ async function gmailFetch(path: string): Promise<unknown> {
 }
 
 interface ListMessagesResponse {
+  // Gmail also returns `threadId` per entry, which we deliberately never
+  // read/store — a thread can bundle multiple distinct emails together, so
+  // using it as a transaction identity would silently collapse separate
+  // transactions. Only the individual message `.id` is used anywhere.
   messages?: { id: string }[];
   nextPageToken?: string;
 }

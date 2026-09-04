@@ -46,7 +46,11 @@ export function GmailImportPanel() {
       const batch = candidates.slice(0, DRY_RUN_BATCH_SIZE);
       const result = await dryRunGmailAction(batch);
       setItems(result.items);
-      setSelected(new Set(result.items.filter((i) => i.confidence !== "low").map((i) => i.messageId)));
+      setSelected(
+        new Set(
+          result.items.filter((i) => i.classification === "TRANSACTION" && i.confidence !== "low").map((i) => i.messageId)
+        )
+      );
       setStep("dry-run");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Dry run failed.");
@@ -143,7 +147,7 @@ export function GmailImportPanel() {
                   className="mt-1 h-4 w-4 flex-shrink-0"
                   checked={selected.has(item.messageId)}
                   onChange={() => toggle(item.messageId)}
-                  disabled={item.detectedAmount === null}
+                  disabled={item.classification !== "TRANSACTION" || item.detectedAmount === null}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
@@ -154,7 +158,11 @@ export function GmailImportPanel() {
                   </div>
                   <p className="mt-0.5 truncate text-xs text-muted">{item.subject}</p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    <Badge tone={CONFIDENCE_TONE[item.confidence]}>{item.confidence} confidence</Badge>
+                    {item.classification === "TRANSACTION" ? (
+                      <Badge tone={CONFIDENCE_TONE[item.confidence]}>{item.confidence} confidence</Badge>
+                    ) : (
+                      <Badge tone="neutral">{item.classification === "NON_TRANSACTION" ? "Not a transaction" : "Ambiguous"}</Badge>
+                    )}
                     {item.warnings.map((w) => (
                       <Badge key={w} tone="neutral">
                         {w}

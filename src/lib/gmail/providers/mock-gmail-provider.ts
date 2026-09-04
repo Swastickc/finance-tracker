@@ -36,6 +36,27 @@ const FIXTURE_EMAILS = [
     date: "Fri, 02 Aug 2025 11:30:00 +0530",
     body: "This is a notification email with no clear amount or merchant reference.",
   },
+  {
+    id: "fixture-msg-5",
+    from: "HDFC Bank <alerts@hdfcbank.net>",
+    subject: "OTP for your transaction",
+    date: "Sat, 03 Aug 2025 10:00:00 +0530",
+    body: "Your OTP is 482913 for a txn of INR 2499.00 at AmazonSelle on HDFC Bank card ending 8721. Do not share this OTP.",
+  },
+  {
+    id: "fixture-msg-6",
+    from: "HDFC Bank <alerts@hdfcbank.net>",
+    subject: "Payment due reminder",
+    date: "Sun, 04 Aug 2025 09:00:00 +0530",
+    body: "Rs 12,500.00 is due on your HDFC Bank Credit Card. Please pay by the due date to avoid late fees.",
+  },
+  {
+    id: "fixture-msg-7",
+    from: "HDFC Bank <alerts@hdfcbank.net>",
+    subject: "Credit card payment received",
+    date: "Mon, 05 Aug 2025 12:00:00 +0530",
+    body: "PAYMENT OF Rs.12797.00 RECEIVED TOWARDS YOUR CREDIT CARD ENDING WITH 8721. Thank you.",
+  },
 ];
 
 export class MockGmailImporter implements GmailImporter {
@@ -66,21 +87,25 @@ export class MockGmailImporter implements GmailImporter {
         sender: email.from,
         subject: email.subject,
         date: email.date,
+        classification: parsed.classification,
+        nonTransactionReason: parsed.nonTransactionReason,
         detectedAmount: parsed.detectedAmount,
         merchant: parsed.merchant,
         type: parsed.type,
         category: parsed.category,
         confidence: parsed.confidence,
+        classificationNote: parsed.classificationNote,
+        possibleDuplicateOfMessageId: null,
         warnings: parsed.warnings,
       };
     });
 
-    return { runAt: new Date().toISOString(), items };
+    return { runAt: new Date().toISOString(), items, parserFailureCount: 0 };
   }
 
   async importItems(items: DryRunItem[]): Promise<ImportOutcome> {
     const startedAt = new Date().toISOString();
-    const importable = items.filter((i) => i.detectedAmount !== null);
+    const importable = items.filter((i) => i.classification === "TRANSACTION" && i.detectedAmount !== null);
 
     const outcome: ImportOutcome = {
       importId: `imp-gmail-${Date.now()}`,
