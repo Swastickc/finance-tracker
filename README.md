@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Finance Tracker — Personal Finance Portal
 
-## Getting Started
+A private, mobile-first personal finance portal. Consumes transactions from an
+existing SMS → Google Sheets pipeline (not rebuilt here) and will add Gmail
+import, analytics, and AI-grounded insights in later phases. See
+[PROJECT_SPEC.md](./PROJECT_SPEC.md) for the full product spec and phased
+roadmap.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router, TypeScript, Turbopack)
+- Tailwind CSS v4 (design tokens in `src/app/globals.css`)
+- lucide-react icons
+- Data layer currently backed by mock data (`src/lib/mock-data.ts`), behind
+  the same abstraction (`src/lib/data/transactions.ts`) that will later read
+  from Google Sheets/Gmail
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run dev       # start dev server
+npm run build     # production build
+npm run lint      # ESLint
+npx tsc --noEmit  # type-check
+```
 
-## Learn More
+## Project structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/                  # routes: Overview, Transactions, Review, Analytics,
+                         # Settings, Data Quality, Import History
+  components/
+    ui/                 # reusable primitives: Card, Button, Badge, StatCard,
+                         # Skeleton, EmptyState, ErrorState
+    layout/             # AppShell, Sidebar (desktop), BottomNav (mobile)
+    transactions/       # TransactionRow
+  lib/
+    types.ts             # unified, source-agnostic transaction schema
+    mock-data.ts          # realistic mock transactions/rules/import history
+    data/transactions.ts  # data-access layer (swap mock → real source here)
+    format.ts, cn.ts, nav.ts
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Status
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Phase 0 (repository audit) and Phase 1 (frontend foundation: app shell, nav,
+design tokens, primitives, dashboard skeleton, loading/empty/error states) are
+complete, using mock data. Later phases (Google Sheets integration, Gmail
+importer, analytics, Finance AI) are not yet implemented — see
+`PROJECT_SPEC.md` §28 for the phase plan.
 
-## Deploy on Vercel
+## Environment variables
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+None required yet. When Google Sheets/Gmail/AI integrations are added, secrets
+will be read from environment variables only (never committed) and a
+`.env.example` will be provided.
