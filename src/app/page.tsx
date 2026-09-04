@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
 import { getMonthlySummary } from "@/lib/data/transactions";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import { StatCard } from "@/components/ui/StatCard";
@@ -9,6 +8,8 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { CategoryBreakdown } from "@/components/dashboard/CategoryBreakdown";
 import { IncomeTransferSummary } from "@/components/dashboard/IncomeTransferSummary";
 import { RecentTransactionsList } from "@/components/dashboard/RecentTransactionsList";
+import { FinanceInsightCard } from "@/components/ai/FinanceInsightCard";
+import { AskAI } from "@/components/ai/AskAI";
 
 export default async function OverviewPage() {
   const summary = await getMonthlySummary();
@@ -33,16 +34,8 @@ export default async function OverviewPage() {
 
       <IncomeTransferSummary incomeTotal={summary.incomeTotal} transferTotal={summary.transferTotal} />
 
-      <Card className="flex items-start gap-3 p-5">
-        <Sparkles className="mt-0.5 flex-shrink-0 text-accent" size={20} aria-hidden="true" />
-        <div>
-          <p className="text-sm font-semibold text-muted">AI insight</p>
-          <p className="mt-1 text-[15px]">
-            Finance AI is coming in a later phase. Once connected, insights about your spending
-            patterns will appear here — grounded only in the numbers shown on this page.
-          </p>
-        </div>
-      </Card>
+      <FinanceInsightCard />
+      <AskAI />
 
       {summary.uncategorizedSpend > 0 && (
         <Link href="/review" className="block">

@@ -55,22 +55,25 @@ src/
     sheets/               # Sheets REST client, service-account auth, row mapping
     gmail/                # Gmail OAuth client, semantic-anchor parser, SCAN/DRY RUN/IMPORT providers
     data/analytics.ts     # deterministic trends/category/merchant/income/recurring aggregation
+    ai/                   # context builder (redacted metrics), AIProvider abstraction + 4 providers
     date.ts, format.ts, cn.ts, nav.ts
 ```
 
 ## Status
 
-Phases 0–7 are complete: frontend foundation, dashboard, transactions (search/
+Phases 0–8 are complete: frontend foundation, dashboard, transactions (search/
 filter/sort/edit), review queue (confirm/edit/rule creation/ignore), a Google
 Sheets data-access layer, a Gmail historical importer (SCAN/DRY RUN/IMPORT),
-and analytics (spending trend, category/merchant month-over-month, income,
-transfers, recurring-expense detection — all deterministic, no AI). Both the
-Sheets read path and the Gmail importer are scaffolded but unverified against
-real credentials/inboxes — the Gmail parser (`src/lib/gmail/parse.ts`) uses
-the semantic-anchor technique from `PROJECT_SPEC.md` §7 against illustrative
-fixtures only, not real emails (mock remains the default for both). Later
-phases (Finance AI, production hardening) are not yet implemented — see
-`PROJECT_SPEC.md` §28 for the phase plan.
+analytics (spending trend, category/merchant month-over-month, income,
+transfers, recurring-expense detection), and Finance AI (deterministic metrics
+→ redacted context → provider-abstracted insight/Q&A). The default AI provider
+is a template (no API key, cannot hallucinate); `openai`/`gemini` are
+implemented and just need an API key, `cloudflare` is stubbed pending a
+Next.js 16-compatible Cloudflare adapter. The Sheets read path and Gmail
+importer are likewise scaffolded but unverified against real
+credentials/inboxes (mock remains the default for both). Production hardening
+(Phase 9) is not yet implemented — see `PROJECT_SPEC.md` §28 for the phase
+plan.
 
 ## Environment variables
 
