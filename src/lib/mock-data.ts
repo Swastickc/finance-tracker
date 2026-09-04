@@ -67,3 +67,8 @@ export const mockImportHistory: ImportRecord[] = [
   { importId: "imp-sms-001", source: "sms", startedAt: "2026-09-04T09:00:00Z", completedAt: "2026-09-04T09:00:42Z", messagesScanned: 12, transactionsDetected: 6, transactionsImported: 6, duplicates: 0, errors: 0, status: "completed" },
   { importId: "imp-gmail-001", source: "gmail", startedAt: "2026-09-01T06:00:00Z", completedAt: "2026-09-01T06:04:12Z", messagesScanned: 1284, transactionsDetected: 318, transactionsImported: 301, duplicates: 17, errors: 0, status: "completed" },
 ];
+
+/** Prepends a new run so it shows up first in Import History — demo-only persistence (in-memory, dev process lifetime). */
+export function addMockImportRecord(record: ImportRecord) {
+  mockImportHistory.unshift(record);
+}

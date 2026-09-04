@@ -53,19 +53,21 @@ src/
       provider.ts         # picks mock vs. Google Sheets via DATA_SOURCE
       providers/          # MockTransactionProvider, GoogleSheetsTransactionProvider
     sheets/               # Sheets REST client, service-account auth, row mapping
+    gmail/                # Gmail OAuth client, semantic-anchor parser, SCAN/DRY RUN/IMPORT providers
     format.ts, cn.ts, nav.ts
 ```
 
 ## Status
 
-Phases 0–5 are complete: frontend foundation, dashboard, transactions (search/
-filter/sort/edit), review queue (confirm/edit/rule creation/ignore), and a
-Google Sheets data-access layer (opt-in, mock remains the default). The Sheets
-integration is scaffolded but unverified against the real spreadsheet — its
-column mapping is a placeholder pending confirmation (see Environment
-variables). Later phases (Gmail importer, analytics, Finance AI, production
-hardening) are not yet implemented — see `PROJECT_SPEC.md` §28 for the phase
-plan.
+Phases 0–6 are complete: frontend foundation, dashboard, transactions (search/
+filter/sort/edit), review queue (confirm/edit/rule creation/ignore), a Google
+Sheets data-access layer, and a Gmail historical importer (SCAN/DRY
+RUN/IMPORT). Both the Sheets read path and the Gmail importer are scaffolded
+but unverified against real credentials/inboxes — the Gmail parser (`src/lib/
+gmail/parse.ts`) uses the semantic-anchor technique from `PROJECT_SPEC.md` §7
+against illustrative fixtures only, not real emails (mock remains the default
+for both). Later phases (analytics, Finance AI, production hardening) are not
+yet implemented — see `PROJECT_SPEC.md` §28 for the phase plan.
 
 ## Environment variables
 

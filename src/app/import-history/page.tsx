@@ -3,6 +3,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SOURCE_LABEL } from "@/lib/labels";
+import { GmailImportPanel } from "@/components/import/GmailImportPanel";
 import { History } from "lucide-react";
 
 export default async function ImportHistoryPage() {
@@ -11,6 +12,7 @@ export default async function ImportHistoryPage() {
   return (
     <div className="space-y-6">
       <h1 className="px-1 text-[28px] font-semibold tracking-tight">Import History</h1>
+      <GmailImportPanel />
       {imports.length === 0 ? (
         <EmptyState icon={<History size={28} />} title="No imports yet" description="Gmail and SMS import runs will be tracked here." />
       ) : (

@@ -3,7 +3,10 @@
 // works in both Node.js and edge runtimes (e.g. Cloudflare Workers).
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
-const SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly";
+// Read-write: Sheets scopes are spreadsheet-level, not tab-level, and Phase 6
+// (Gmail import) needs to append rows to a dedicated new tab. The SMS tab is
+// still never written to by any code path here (Rule: never touch it).
+const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 
 interface CachedToken {
   accessToken: string;
