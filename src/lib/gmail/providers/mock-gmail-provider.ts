@@ -76,6 +76,8 @@ export class MockGmailImporter implements GmailImporter {
       candidateMessageIds: FIXTURE_EMAILS.map((e) => e.id),
       // Mock has no real incremental tracking — every scan reports all fixtures as new.
       newMessageIds: FIXTURE_EMAILS.map((e) => e.id),
+      // Mock never claims anything, so nothing can ever be stuck "importing" here.
+      ambiguousMessageIds: [],
     };
   }
 

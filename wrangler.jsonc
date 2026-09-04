@@ -10,5 +10,23 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  // Persists which Gmail message IDs have been scanned/claimed/imported,
+  // across requests, isolates, restarts, and deployments
+  // (src/lib/gmail/scanState.ts). D1 (not KV) is used specifically because
+  // it gives an atomic claim primitive that prevents two concurrent requests
+  // from both importing the same message — see the review that led to this
+  // choice. Create the real database with `wrangler d1 create
+  // finance-tracker-gmail-scan-state`, apply the schema in
+  // src/lib/gmail/scanState.sql, and replace "database_id" below before
+  // deploying — without a real id, the Gmail importer will fail loudly
+  // rather than silently falling back to per-isolate memory (see
+  // resolveD1Binding in scanState.ts).
+  "d1_databases": [
+    {
+      "binding": "GMAIL_SCAN_STATE_DB",
+      "database_name": "finance-tracker-gmail-scan-state",
+      "database_id": "REPLACE_WITH_REAL_D1_DATABASE_ID"
+    }
+  ]
 }

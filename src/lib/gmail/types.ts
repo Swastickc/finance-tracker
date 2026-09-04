@@ -17,6 +17,8 @@ export interface ScanResult {
   candidateMessageIds: string[];
   /** Subset of candidateMessageIds never seen by a previous scan (project-spec-truth.md §"ONGOING GMAIL"). */
   newMessageIds: string[];
+  /** Subset of candidateMessageIds stuck "importing" past the ambiguity timeout — needs manual verification against the Sheet, never auto-retried. */
+  ambiguousMessageIds: string[];
 }
 
 export type DryRunConfidence = "high" | "medium" | "low";
@@ -59,6 +61,7 @@ export interface ImportOutcome {
   messagesScanned: number;
   transactionsDetected: number;
   transactionsImported: number;
+  /** Candidates that were already imported/importing/ambiguous (or duplicated within this request) and were therefore never sent to Sheets. */
   duplicates: number;
   errors: number;
   status: "completed" | "failed";
