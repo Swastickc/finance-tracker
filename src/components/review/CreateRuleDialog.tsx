@@ -82,11 +82,11 @@ function RuleForm({
         </p>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-muted">Match pattern</span>
-          <Input value={pattern} onChange={(e) => setPattern(e.target.value)} placeholder="e.g. ZOMATO" />
+          <Input value={pattern} onChange={(e) => setPattern(e.target.value)} placeholder="e.g. ZOMATO" maxLength={100} />
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-muted">Merchant name</span>
-          <Input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="e.g. Zomato" />
+          <Input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="e.g. Zomato" maxLength={80} />
         </label>
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-muted">Category</span>

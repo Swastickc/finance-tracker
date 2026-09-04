@@ -7,7 +7,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-full flex-1">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-[calc(var(--safe-top)+1.5rem)] pb-24 sm:px-6 md:pb-10">
+        <main
+          id="main-content"
+          className="mx-auto w-full max-w-3xl flex-1 px-4 pt-[calc(var(--safe-top)+1.5rem)] pb-24 sm:px-6 md:pb-10"
+        >
           {children}
         </main>
       </div>

@@ -78,7 +78,7 @@ function DialogContent({
 
         <label className="block">
           <span className="mb-1.5 block text-sm font-medium text-muted">Merchant</span>
-          <Input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="Unknown merchant" />
+          <Input value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder="Unknown merchant" maxLength={80} />
         </label>
 
         <label className="block">

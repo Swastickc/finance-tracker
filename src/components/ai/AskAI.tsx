@@ -49,6 +49,7 @@ export function AskAI() {
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="e.g. How much did I spend on food?"
           aria-label="Ask a question about your finances"
+          maxLength={300}
         />
         <Button type="submit" disabled={loading || !question.trim()} className="flex-shrink-0 text-sm">
           {loading ? "Asking…" : "Ask"}
