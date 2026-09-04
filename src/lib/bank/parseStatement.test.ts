@@ -68,4 +68,38 @@ describe("parseStatementRows", () => {
     expect(result.rows).toHaveLength(0);
     expect(result.warnings).toHaveLength(0);
   });
+
+  it("detects the header when it is the very first row", () => {
+    const rows = [HEADER, ["1", "01/08/2026", "01/08/2026", "", "UPI-ZOMATO", "640.00", "", "1000"]];
+    const result = parseStatementRows(rows);
+    expect(result.rows).toHaveLength(1);
+    expect(result.warnings).toHaveLength(0); // no "preamble skipped" warning when header is row 1
+  });
+
+  it("detects the header after several preamble rows (account info, statement period, blank rows, etc.)", () => {
+    const preamble = [
+      ["Statement of Account"],
+      ["Account Holder: TEST USER"],
+      ["Account Number: XXXXXXXX1234"],
+      ["Period: 01/09/2025 to 31/08/2026"],
+      [""],
+      [""],
+    ];
+    const rows = [...preamble, HEADER, ["1", "01/08/2026", "01/08/2026", "", "UPI-ZOMATO", "640.00", "", "1000"]];
+    const result = parseStatementRows(rows);
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].transactionDate).toBe("2026-08-01");
+    expect(result.warnings.some((w) => w.includes("Header row detected at row 7"))).toBe(true);
+  });
+
+  it("reports a clear warning and parses nothing when no header row matches within the scan window", () => {
+    const rows = [
+      ["Some Bank"],
+      ["Not a real header", "Foo", "Bar"],
+      ["1", "01/08/2026", "01/08/2026", "", "UPI-ZOMATO", "640.00", "", "1000"],
+    ];
+    const result = parseStatementRows(rows);
+    expect(result.rows).toHaveLength(0);
+    expect(result.warnings.some((w) => w.includes("Could not find a header row"))).toBe(true);
+  });
 });
