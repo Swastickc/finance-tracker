@@ -4,6 +4,7 @@ import { parseEmail } from "@/lib/gmail/parse";
 import { appendSheetValues } from "@/lib/sheets/client";
 import { transactionToRow } from "@/lib/canonical/sheetSchema";
 import { isNewMessage, markImported, markPending } from "@/lib/gmail/scanState";
+import { formatInTimeZone, IST_TIME_ZONE } from "@/lib/gmail/timezone";
 import type { Transaction } from "@/lib/types";
 import type { DryRunItem, DryRunResult, ImportOutcome, ScanResult } from "@/lib/gmail/types";
 import type { GmailImporter } from "@/lib/gmail/providers/types";
@@ -170,13 +171,14 @@ function flagWithinBatchDuplicates(items: DryRunItem[]): void {
   }
 }
 
-function parseHeaderDate(rfc2822: string): string {
+/** Exported for direct unit testing of the RFC 2822 -> IST conversion. */
+export function parseHeaderDate(rfc2822: string): string {
   const date = new Date(rfc2822);
-  return Number.isNaN(date.getTime()) ? new Date().toISOString().slice(0, 10) : date.toISOString().slice(0, 10);
+  return formatInTimeZone(Number.isNaN(date.getTime()) ? new Date() : date, IST_TIME_ZONE).date;
 }
 
-function parseHeaderTime(rfc2822: string): string | null {
+export function parseHeaderTime(rfc2822: string): string | null {
   const date = new Date(rfc2822);
   if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().slice(11, 16);
+  return formatInTimeZone(date, IST_TIME_ZONE).time;
 }
