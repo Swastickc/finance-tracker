@@ -78,9 +78,9 @@ the Google Sheets integration:
 - `GOOGLE_SHEETS_SPREADSHEET_ID`, `GOOGLE_SHEETS_TRANSACTIONS_RANGE` — the
   spreadsheet ID and the A1 range of the transactions tab.
 
-The column headers `src/lib/sheets/mapRow.ts` expects mirror the unified
-schema field names from `PROJECT_SPEC.md` §5 (`transaction_date`, `amount`,
-`raw_description`, etc.) — **this must be confirmed against the real,
-existing sheet before turning on `DATA_SOURCE=sheets`**; the app was not
-guessing real credentials or schema, only scaffolding the integration.
+The column layout `src/lib/sheets/mapRow.ts` expects is **positional, not
+header-based** — the real sheet has no header row. Confirmed layout (2026-09-04):
+column A datetime (`M/D/YYYY H:mm:ss`), B payee, C amount, D a free-text note/tag.
+All imported rows default to `status: "review"` so they flow through the
+Review queue for confirmation/categorization rather than being trusted blindly.
 Never commit `.env`/`.env.local`.
