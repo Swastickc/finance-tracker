@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "gmail:oauth": "node scripts/gmail-oauth.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.41.0",

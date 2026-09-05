@@ -61,11 +61,16 @@ class FakeStatement implements D1PreparedStatementLike {
     this.maybeFail();
     const q = this.query;
 
-    if (q.includes("VALUES (?, 'pending')")) {
-      const [id] = this.args as [string];
-      if (this.rows.has(id)) return { success: true, meta: { changes: 0 } };
-      this.rows.set(id, { state: "pending", claimed_at: null, imported_at: null });
-      return { success: true, meta: { changes: 1 } };
+    if (q.startsWith("INSERT INTO gmail_scan_state (message_id, state) VALUES")) {
+      const ids = this.args as string[];
+      let changes = 0;
+      for (const id of ids) {
+        if (!this.rows.has(id)) {
+          this.rows.set(id, { state: "pending", claimed_at: null, imported_at: null });
+          changes++;
+        }
+      }
+      return { success: true, meta: { changes } };
     }
 
     if (q.includes("VALUES (?, 'importing', ?)")) {
@@ -103,6 +108,19 @@ class FakeStatement implements D1PreparedStatementLike {
     const [id] = this.args as [string];
     const row = this.rows.get(id);
     return (row ?? null) as T | null;
+  }
+
+  async all<T>(): Promise<{ results: T[] }> {
+    this.maybeFail();
+    if (!this.query.startsWith("SELECT message_id, state, claimed_at FROM gmail_scan_state WHERE message_id IN")) {
+      throw new Error(`FakeD1: unrecognized all() query: ${this.query}`);
+    }
+    const ids = this.args as string[];
+    const results = ids.flatMap((id) => {
+      const row = this.rows.get(id);
+      return row ? [{ message_id: id, state: row.state, claimed_at: row.claimed_at }] : [];
+    });
+    return { results: results as T[] };
   }
 }
 

@@ -9,8 +9,8 @@ import type { Transaction } from "@/lib/types";
 import type { DryRunItem, DryRunResult, ImportOutcome, ScanResult } from "@/lib/gmail/types";
 import type { GmailImporter } from "@/lib/gmail/providers/types";
 
-const SCAN_MESSAGE_CAP = 200;
-const SCAN_METADATA_SAMPLE = 50;
+const SCAN_MESSAGE_CAP = 3000;
+const SCAN_METADATA_SAMPLE = 150;
 const GMAIL_IMPORT_RANGE = process.env.GOOGLE_SHEETS_GMAIL_IMPORT_RANGE || "GmailImports!A:T";
 
 export class LiveGmailImporter implements GmailImporter {

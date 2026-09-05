@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "finance-tracker",
-  "main": ".open-next/worker.js",
+  "main": "./custom-worker.ts",
   "compatibility_date": "2026-09-04",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
@@ -10,6 +10,13 @@
   },
   "observability": {
     "enabled": true
+  },
+  // Ongoing incremental Gmail scan — see src/lib/gmail/scheduledScan.ts and
+  // custom-worker.ts. Runs hourly; capped small per run so it always finishes
+  // well within Workers execution limits (catches up incrementally rather
+  // than needing to process everything in one run).
+  "triggers": {
+    "crons": ["0 * * * *"]
   },
   // Persists which Gmail message IDs have been scanned/claimed/imported,
   // across requests, isolates, restarts, and deployments

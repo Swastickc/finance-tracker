@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mail, RefreshCw, Search } from "lucide-react";
+import { Mail, RefreshCw, Search, Zap } from "lucide-react";
 import type { DryRunItem, ImportOutcome, ScanResult } from "@/lib/gmail/types";
 import { scanGmailAction, dryRunGmailAction, importGmailAction } from "@/lib/gmail/actions";
 import { Card } from "@/components/ui/Card";
@@ -11,9 +11,20 @@ import { Badge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/format";
 
 const CONFIDENCE_TONE = { high: "success", medium: "warning", low: "danger" } as const;
-const DRY_RUN_BATCH_SIZE = 20;
+// Matches the server's MAX_BATCH_SIZE (src/lib/gmail/actions.ts) so a batch
+// is never silently truncated.
+const DRY_RUN_BATCH_SIZE = 50;
+// Server-side rate limit is 10 actions/60s per action name (scan/dry-run/import
+// each counted separately — see assertNotRateLimited in src/lib/gmail/actions.ts).
+// One dry-run + one import per iteration, paced above 6s apart, stays safely
+// under that limit for both action types at once.
+const PROCESS_ALL_DELAY_MS = 6500;
 
-type Step = "idle" | "scanning" | "scanned" | "running-dry-run" | "dry-run" | "importing" | "imported";
+type Step = "idle" | "scanning" | "scanned" | "running-dry-run" | "dry-run" | "importing" | "imported" | "processing-all";
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export function GmailImportPanel() {
   const router = useRouter();
@@ -23,6 +34,14 @@ export function GmailImportPanel() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [outcome, setOutcome] = useState<ImportOutcome | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Advances through candidateMessageIds across repeated "Run dry run" clicks
+  // so a large scan (e.g. thousands of candidates) can be worked through in
+  // batches instead of always re-processing the first DRY_RUN_BATCH_SIZE.
+  const [dryRunOffset, setDryRunOffset] = useState(0);
+  const [processAllProgress, setProcessAllProgress] = useState<{ imported: number; skippedLowConfidence: number } | null>(
+    null
+  );
+  const cancelProcessAllRef = useRef(false);
 
   async function handleScan() {
     setStep("scanning");
@@ -30,6 +49,7 @@ export function GmailImportPanel() {
     try {
       const result = await scanGmailAction();
       setScanResult(result);
+      setDryRunOffset(0);
       setStep("scanned");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Scan failed.");
@@ -39,11 +59,11 @@ export function GmailImportPanel() {
 
   async function handleDryRun() {
     if (!scanResult) return;
+    const batch = scanResult.candidateMessageIds.slice(dryRunOffset, dryRunOffset + DRY_RUN_BATCH_SIZE);
+    if (batch.length === 0) return;
     setStep("running-dry-run");
     setError(null);
     try {
-      const candidates = scanResult.newMessageIds.length > 0 ? scanResult.newMessageIds : scanResult.candidateMessageIds;
-      const batch = candidates.slice(0, DRY_RUN_BATCH_SIZE);
       const result = await dryRunGmailAction(batch);
       setItems(result.items);
       setSelected(
@@ -51,6 +71,7 @@ export function GmailImportPanel() {
           result.items.filter((i) => i.classification === "TRANSACTION" && i.confidence !== "low").map((i) => i.messageId)
         )
       );
+      setDryRunOffset((prev) => prev + batch.length);
       setStep("dry-run");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Dry run failed.");
@@ -82,6 +103,64 @@ export function GmailImportPanel() {
     });
   }
 
+  /**
+   * Automates the manual "dry run -> select safe candidates -> import" loop
+   * across every remaining candidate. Never selects NON_TRANSACTION/UNKNOWN
+   * or low-confidence items (same rule as the default manual selection) —
+   * those are left for manual review in the dry-run list or the Review page,
+   * never auto-imported. Paced to respect the server's per-action rate limit.
+   */
+  async function handleProcessAll() {
+    if (!scanResult) return;
+    cancelProcessAllRef.current = false;
+    setStep("processing-all");
+    setError(null);
+    setProcessAllProgress({ imported: 0, skippedLowConfidence: 0 });
+
+    let offset = dryRunOffset;
+    let totalImported = 0;
+    let totalSkippedLowConfidence = 0;
+
+    try {
+      while (offset < scanResult.candidateMessageIds.length) {
+        if (cancelProcessAllRef.current) break;
+
+        const batch = scanResult.candidateMessageIds.slice(offset, offset + DRY_RUN_BATCH_SIZE);
+        const dryRunResult = await dryRunGmailAction(batch);
+        setItems(dryRunResult.items);
+
+        const safeIds = dryRunResult.items
+          .filter((i) => i.classification === "TRANSACTION" && i.confidence !== "low" && i.detectedAmount !== null)
+          .map((i) => i.messageId);
+        totalSkippedLowConfidence += dryRunResult.items.filter((i) => i.classification === "TRANSACTION" && i.confidence === "low").length;
+        setSelected(new Set(safeIds));
+
+        if (safeIds.length > 0) {
+          const chosen = dryRunResult.items.filter((i) => safeIds.includes(i.messageId));
+          const importResult = await importGmailAction(chosen);
+          totalImported += importResult.transactionsImported;
+        }
+
+        offset += batch.length;
+        setDryRunOffset(offset);
+        setProcessAllProgress({ imported: totalImported, skippedLowConfidence: totalSkippedLowConfidence });
+
+        if (offset < scanResult.candidateMessageIds.length && !cancelProcessAllRef.current) {
+          await sleep(PROCESS_ALL_DELAY_MS);
+        }
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Process all failed — you can resume from where it stopped.");
+    } finally {
+      setStep("scanned");
+    }
+  }
+
+  function handleCancelProcessAll() {
+    cancelProcessAllRef.current = true;
+  }
+
   return (
     <Card className="p-5">
       <div className="flex items-start gap-3">
@@ -98,7 +177,7 @@ export function GmailImportPanel() {
       {error && <p className="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={handleScan} disabled={step === "scanning"} className="text-sm">
+        <Button onClick={handleScan} disabled={step === "scanning" || step === "processing-all"} className="text-sm">
           <Search size={15} aria-hidden="true" />
           {step === "scanning" ? "Scanning…" : "Scan Gmail"}
         </Button>
@@ -106,14 +185,52 @@ export function GmailImportPanel() {
           <Button
             variant="secondary"
             onClick={handleDryRun}
-            disabled={step === "running-dry-run" || step === "scanning"}
+            disabled={
+              step === "running-dry-run" ||
+              step === "scanning" ||
+              step === "processing-all" ||
+              dryRunOffset >= scanResult.candidateMessageIds.length
+            }
             className="text-sm"
           >
             <RefreshCw size={15} aria-hidden="true" />
-            {step === "running-dry-run" ? "Running dry run…" : "Run dry run"}
+            {step === "running-dry-run"
+              ? "Running dry run…"
+              : dryRunOffset >= scanResult.candidateMessageIds.length
+                ? "All candidates dry-run"
+                : `Run dry run (${dryRunOffset}/${scanResult.candidateMessageIds.length})`}
+          </Button>
+        )}
+        {scanResult && dryRunOffset < scanResult.candidateMessageIds.length && step !== "processing-all" && (
+          <Button
+            variant="secondary"
+            onClick={handleProcessAll}
+            disabled={step === "scanning" || step === "running-dry-run" || step === "importing"}
+            className="text-sm"
+          >
+            <Zap size={15} aria-hidden="true" />
+            Process all remaining ({scanResult.candidateMessageIds.length - dryRunOffset})
+          </Button>
+        )}
+        {step === "processing-all" && (
+          <Button variant="secondary" onClick={handleCancelProcessAll} className="text-sm">
+            Stop after this batch
           </Button>
         )}
       </div>
+
+      {step === "processing-all" && scanResult && processAllProgress && (
+        <p className="mt-3 rounded-lg bg-accent/10 px-3 py-2 text-sm">
+          Processing… {dryRunOffset}/{scanResult.candidateMessageIds.length} scanned, {processAllProgress.imported} imported,{" "}
+          {processAllProgress.skippedLowConfidence} skipped (low confidence, left for manual review).
+        </p>
+      )}
+      {step !== "processing-all" && processAllProgress && (
+        <p className="mt-3 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
+          Process all finished: {processAllProgress.imported} imported, {processAllProgress.skippedLowConfidence} left for
+          manual review (low confidence).
+        </p>
+      )}
 
       {scanResult && (
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">

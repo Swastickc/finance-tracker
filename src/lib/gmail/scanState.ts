@@ -54,6 +54,17 @@ export interface ScanStateStore {
   /** Finalizes previously-claimed ("importing") messages as "imported". Never touches ids not currently "importing". */
   markImported(ids: string[]): Promise<void>;
   getMessageState(id: string): Promise<ReportedMessageState | undefined>;
+  /** Batched equivalent of calling getMessageState() per id — chunks the lookup into few round-trips instead of one per id. Ids with no recorded state are simply absent from the returned map. */
+  getManyStates(ids: string[]): Promise<Map<string, ReportedMessageState>>;
+}
+
+/** Max ids per batched SQL statement (well under SQLite's default bound-parameter limit). */
+const BATCH_CHUNK_SIZE = 100;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
 }
 
 /** Raised whenever the state store cannot honestly answer/persist a request — callers must NOT treat this as "not processed" or "processed". */
@@ -77,6 +88,7 @@ export interface D1PreparedStatementLike {
   bind(...values: unknown[]): D1PreparedStatementLike;
   run(): Promise<D1ResultLike>;
   first<T = unknown>(): Promise<T | null>;
+  all<T = unknown>(): Promise<{ results: T[] }>;
 }
 
 export interface D1DatabaseLike {
@@ -120,15 +132,18 @@ export class D1ScanStateStore implements ScanStateStore {
   }
 
   async markPending(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const uniqueIds = [...new Set(ids)];
     await Promise.all(
-      ids.map(async (id) => {
+      chunk(uniqueIds, BATCH_CHUNK_SIZE).map(async (idsChunk) => {
+        const placeholders = idsChunk.map(() => "(?, 'pending')").join(",");
         try {
           await this.db
-            .prepare(`INSERT INTO gmail_scan_state (message_id, state) VALUES (?, 'pending') ON CONFLICT(message_id) DO NOTHING`)
-            .bind(id)
+            .prepare(`INSERT INTO gmail_scan_state (message_id, state) VALUES ${placeholders} ON CONFLICT(message_id) DO NOTHING`)
+            .bind(...idsChunk)
             .run();
         } catch (err) {
-          throw new ScanStatePersistenceError(`Failed to persist Gmail scan state ("pending") for message ${id}`, err);
+          throw new ScanStatePersistenceError(`Failed to persist Gmail scan state ("pending") for ${idsChunk.length} message(s)`, err);
         }
       })
     );
@@ -175,6 +190,30 @@ export class D1ScanStateStore implements ScanStateStore {
     }
     return row ? deriveReportedState(row) : undefined;
   }
+
+  async getManyStates(ids: string[]): Promise<Map<string, ReportedMessageState>> {
+    const uniqueIds = [...new Set(ids)];
+    const chunkResults = await Promise.all(
+      chunk(uniqueIds, BATCH_CHUNK_SIZE).map(async (idsChunk) => {
+        const placeholders = idsChunk.map(() => "?").join(",");
+        try {
+          const { results } = await this.db
+            .prepare(`SELECT message_id, state, claimed_at FROM gmail_scan_state WHERE message_id IN (${placeholders})`)
+            .bind(...idsChunk)
+            .all<StateRow & { message_id: string }>();
+          return results;
+        } catch (err) {
+          throw new ScanStatePersistenceError(`Failed to batch-read Gmail scan state for ${idsChunk.length} message(s)`, err);
+        }
+      })
+    );
+
+    const result = new Map<string, ReportedMessageState>();
+    for (const rows of chunkResults) {
+      for (const row of rows) result.set(row.message_id, deriveReportedState(row));
+    }
+    return result;
+  }
 }
 
 /** Per-process, non-persistent fallback for local dev/tests only — see module doc comment. Mirrors D1ScanStateStore's claim semantics exactly, just without real concurrency to worry about. */
@@ -208,18 +247,27 @@ export class InMemoryScanStateStore implements ScanStateStore {
     if (!existing) return undefined;
     return deriveReportedState({ state: existing.state, claimed_at: existing.claimedAt ? new Date(existing.claimedAt).toISOString() : null });
   }
+
+  async getManyStates(ids: string[]): Promise<Map<string, ReportedMessageState>> {
+    const result = new Map<string, ReportedMessageState>();
+    for (const id of ids) {
+      const state = await this.getMessageState(id);
+      if (state !== undefined) result.set(id, state);
+    }
+    return result;
+  }
 }
 
-/** Checks many IDs in parallel and returns only the ones with no recorded state at all. */
+/** Checks all IDs in a handful of batched queries and returns only the ones with no recorded state at all. */
 export async function filterNewMessageIds(store: ScanStateStore, ids: string[]): Promise<string[]> {
-  const states = await Promise.all(ids.map((id) => store.getMessageState(id)));
-  return ids.filter((_, i) => states[i] === undefined);
+  const states = await store.getManyStates(ids);
+  return ids.filter((id) => !states.has(id));
 }
 
-/** Checks many IDs in parallel and returns only the ones currently reported "ambiguous" (stale "importing" claim — needs manual verification, never auto-retried). */
+/** Checks all IDs in a handful of batched queries and returns only the ones currently reported "ambiguous" (stale "importing" claim — needs manual verification, never auto-retried). */
 export async function filterAmbiguousMessageIds(store: ScanStateStore, ids: string[]): Promise<string[]> {
-  const states = await Promise.all(ids.map((id) => store.getMessageState(id)));
-  return ids.filter((_, i) => states[i] === "ambiguous");
+  const states = await store.getManyStates(ids);
+  return ids.filter((id) => states.get(id) === "ambiguous");
 }
 
 async function resolveD1Binding(): Promise<D1DatabaseLike | null> {
