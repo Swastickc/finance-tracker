@@ -1,5 +1,6 @@
 import { getTransactionProvider } from "@/lib/data/provider";
 import { monthKey, shiftMonthKey } from "@/lib/date";
+import { applyCategoryRules } from "@/lib/categorize";
 import type { Category, CategoryRule, ImportRecord, Transaction } from "@/lib/types";
 
 // Data-access layer: delegates to whichever TransactionProvider is active
@@ -13,7 +14,27 @@ import type { Category, CategoryRule, ImportRecord, Transaction } from "@/lib/ty
 // Caching the in-flight promise dedupes concurrent calls within a single
 // request; the short TTL also avoids re-fetching on rapid navigation.
 let cached: { promise: Promise<Transaction[]>; at: number } | null = null;
+let rulesCached: { promise: Promise<CategoryRule[]>; at: number } | null = null;
 const CACHE_TTL_MS = 10_000;
+
+function getCachedCategoryRules(): Promise<CategoryRule[]> {
+  const now = Date.now();
+  if (!rulesCached || now - rulesCached.at > CACHE_TTL_MS) {
+    const promise = getTransactionProvider()
+      .listCategoryRules()
+      .catch((err) => {
+        rulesCached = null;
+        throw err;
+      });
+    rulesCached = { promise, at: now };
+  }
+  return rulesCached.promise;
+}
+
+/** Called after a rule is created so it applies immediately instead of waiting out the TTL. */
+export function invalidateCategoryRulesCache(): void {
+  rulesCached = null;
+}
 
 export async function getTransactions(): Promise<Transaction[]> {
   const now = Date.now();
@@ -26,8 +47,9 @@ export async function getTransactions(): Promise<Transaction[]> {
       });
     cached = { promise, at: now };
   }
-  const all = await cached.promise;
-  return [...all].sort((a, b) =>
+  const [all, rules] = await Promise.all([cached.promise, getCachedCategoryRules()]);
+  const categorized = applyCategoryRules(all, rules);
+  return [...categorized].sort((a, b) =>
     `${b.transactionDate}T${b.transactionTime ?? "00:00"}`.localeCompare(
       `${a.transactionDate}T${a.transactionTime ?? "00:00"}`
     )
@@ -35,7 +57,7 @@ export async function getTransactions(): Promise<Transaction[]> {
 }
 
 export async function getCategoryRules(): Promise<CategoryRule[]> {
-  return getTransactionProvider().listCategoryRules();
+  return getCachedCategoryRules();
 }
 
 export async function getImportHistory(): Promise<ImportRecord[]> {

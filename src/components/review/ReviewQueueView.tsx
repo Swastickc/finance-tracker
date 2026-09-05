@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import type { CategoryRule, Transaction } from "@/lib/types";
 import type { ReviewItem } from "@/lib/review";
+import { createCategoryRuleAction } from "@/lib/data/ruleActions";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ReviewItemCard } from "@/components/review/ReviewItemCard";
 import { CreateRuleDialog, type NewRuleDraft } from "@/components/review/CreateRuleDialog";
@@ -43,21 +44,16 @@ export function ReviewQueueView({ initialQueue, initialRules }: ReviewQueueViewP
 
   function handleCreateRule(draft: NewRuleDraft) {
     if (!ruleDraftFor) return;
-    const now = new Date().toISOString();
-    const rule: CategoryRule = {
-      ruleId: `r-${Date.now()}`,
-      pattern: draft.pattern,
-      merchant: draft.merchant,
-      category: draft.category,
-      subcategory: null,
-      priority: 5,
-      enabled: true,
-      createdAt: now,
-      updatedAt: now,
-    };
-    setRules((prev) => [rule, ...prev]);
-    removeFromQueue(ruleDraftFor.id);
+    const pendingId = ruleDraftFor.id;
     setRuleDraftFor(null);
+    createCategoryRuleAction(draft)
+      .then((rule) => {
+        setRules((prev) => [rule, ...prev]);
+        removeFromQueue(pendingId);
+      })
+      .catch((err) => {
+        console.error("Failed to create rule:", err);
+      });
   }
 
   if (queue.length === 0) {
