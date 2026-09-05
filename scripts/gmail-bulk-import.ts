@@ -89,6 +89,19 @@ function runD1Sql(sql: string): void {
   });
 }
 
+/** Reads every message_id D1 already has a row for (imported OR pending/rejected) — used so reruns skip previously-processed-and-rejected messages too, not just imported ones. */
+function readAllD1MessageIds(): Set<string> {
+  const wranglerBin = join(process.cwd(), "node_modules", "wrangler", "bin", "wrangler.js");
+  const output = execFileSync(
+    process.execPath,
+    [wranglerBin, "d1", "execute", D1_DATABASE_NAME, "--remote", "--command", "SELECT message_id FROM gmail_scan_state", "--json"],
+    { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" }
+  );
+  const parsed = JSON.parse(output) as { results?: { message_id: string }[] }[];
+  const rows = parsed[0]?.results ?? [];
+  return new Set(rows.map((r) => r.message_id));
+}
+
 function upsertD1State(ids: string[], state: "imported" | "pending"): void {
   for (let i = 0; i < ids.length; i += D1_CHUNK) {
     const chunk = ids.slice(i, i + D1_CHUNK);
@@ -158,11 +171,20 @@ async function main() {
   const alreadyImported = new Set(
     existingRows.slice(1).map((r) => r[sourceIdCol]).filter((v): v is string => Boolean(v))
   );
+
+  let alreadySeenInD1 = new Set<string>();
+  try {
+    alreadySeenInD1 = readAllD1MessageIds();
+    console.log(`  ${alreadySeenInD1.size} message IDs already tracked in D1 (imported or previously rejected).`);
+  } catch (err) {
+    console.error("  Could not read D1 state for dedup (continuing with sheet-only dedup):", err instanceof Error ? err.message : err);
+  }
+  const alreadyProcessed = new Set([...alreadyImported, ...alreadySeenInD1]);
   console.log(`  ${alreadyImported.size} messages already present in the sheet.`);
 
   console.log("[2/5] Listing Gmail candidate message IDs (this may take a bit for a large inbox)...");
   const allIds = await listMessageIds(buildScanQuery(), MAX_CANDIDATES);
-  const toProcess = allIds.filter((id) => !alreadyImported.has(id));
+  const toProcess = allIds.filter((id) => !alreadyProcessed.has(id));
   console.log(`  ${allIds.length} total candidates, ${toProcess.length} need processing.`);
 
   console.log(`[3/5] Fetching + classifying ${toProcess.length} messages (serial, throttled)...`);
