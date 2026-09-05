@@ -1,41 +1,43 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import type { CategoryRule, Transaction } from "@/lib/types";
-import { buildReviewQueue } from "@/lib/review";
+import type { ReviewItem } from "@/lib/review";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ReviewItemCard } from "@/components/review/ReviewItemCard";
 import { CreateRuleDialog, type NewRuleDraft } from "@/components/review/CreateRuleDialog";
 import { TransactionDetailSheet } from "@/components/transactions/TransactionDetailSheet";
 
 interface ReviewQueueViewProps {
-  initialTransactions: Transaction[];
+  initialQueue: ReviewItem[];
   initialRules: CategoryRule[];
 }
 
-export function ReviewQueueView({ initialTransactions, initialRules }: ReviewQueueViewProps) {
-  const [transactions, setTransactions] = useState(initialTransactions);
+export function ReviewQueueView({ initialQueue, initialRules }: ReviewQueueViewProps) {
+  const [queue, setQueue] = useState(initialQueue);
   const [, setRules] = useState(initialRules);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [ruleDraftFor, setRuleDraftFor] = useState<Transaction | null>(null);
 
-  const queue = useMemo(() => buildReviewQueue(transactions), [transactions]);
-
-  function updateTransaction(id: string, patch: Partial<Transaction>) {
-    setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  // Optimistic-only for now (matches prior behavior — no persistence backend
+  // exists yet for review actions). A confirmed/ignored/edited item simply
+  // leaves this page's local queue; it no longer has status "review" so it
+  // won't reappear once the underlying data actually reflects the change.
+  function removeFromQueue(id: string) {
+    setQueue((prev) => prev.filter((item) => item.transaction.id !== id));
   }
 
   function handleConfirm(id: string) {
-    updateTransaction(id, { status: "confirmed" });
+    removeFromQueue(id);
   }
 
   function handleIgnore(id: string) {
-    updateTransaction(id, { status: "ignored" });
+    removeFromQueue(id);
   }
 
   function handleSave(updated: Transaction) {
-    setTransactions((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+    setQueue((prev) => prev.map((item) => (item.transaction.id === updated.id ? { ...item, transaction: updated } : item)));
     setEditing(null);
   }
 
@@ -54,12 +56,7 @@ export function ReviewQueueView({ initialTransactions, initialRules }: ReviewQue
       updatedAt: now,
     };
     setRules((prev) => [rule, ...prev]);
-    updateTransaction(ruleDraftFor.id, {
-      merchant: draft.merchant,
-      category: draft.category,
-      status: "confirmed",
-      ruleId: rule.ruleId,
-    });
+    removeFromQueue(ruleDraftFor.id);
     setRuleDraftFor(null);
   }
 

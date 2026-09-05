@@ -6,8 +6,27 @@ import type { Category, CategoryRule, ImportRecord, Transaction } from "@/lib/ty
 // (mock by default, Google Sheets when DATA_SOURCE=sheets — see
 // src/lib/data/provider.ts). UI code should only ever import from here.
 
+// Short-lived in-flight/result cache: several call sites (e.g.
+// src/lib/data/analytics.ts calls this 6 times in one page render) used to
+// each trigger their own independent 3-sheet fetch+parse, which blew past
+// the Worker's CPU/resource limits once the dataset grew past ~1000 rows.
+// Caching the in-flight promise dedupes concurrent calls within a single
+// request; the short TTL also avoids re-fetching on rapid navigation.
+let cached: { promise: Promise<Transaction[]>; at: number } | null = null;
+const CACHE_TTL_MS = 10_000;
+
 export async function getTransactions(): Promise<Transaction[]> {
-  const all = await getTransactionProvider().listTransactions();
+  const now = Date.now();
+  if (!cached || now - cached.at > CACHE_TTL_MS) {
+    const promise = getTransactionProvider()
+      .listTransactions()
+      .catch((err) => {
+        cached = null; // never cache a failure
+        throw err;
+      });
+    cached = { promise, at: now };
+  }
+  const all = await cached.promise;
   return [...all].sort((a, b) =>
     `${b.transactionDate}T${b.transactionTime ?? "00:00"}`.localeCompare(
       `${a.transactionDate}T${a.transactionTime ?? "00:00"}`
