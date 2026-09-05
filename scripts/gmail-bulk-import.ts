@@ -16,7 +16,12 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
-process.loadEnvFile?.(".env");
+// Optional: only present for local runs — CI (GitHub Actions) sets env vars directly.
+try {
+  process.loadEnvFile?.(".env");
+} catch {
+  // no .env file (e.g. in CI) — fine, env vars are expected to already be set
+}
 
 import { listMessageIds, getMessage } from "@/lib/gmail/client";
 import { buildScanQuery } from "@/lib/gmail/known-senders";
