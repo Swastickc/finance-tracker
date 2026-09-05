@@ -17,7 +17,13 @@ jobs:
         with:
           node-version: "22"
 
-      - run: npm ci
+      # npm ci is intentionally not used here: the lock file is generated on
+      # Windows, and npm has a known cross-platform bug where optional
+      # platform-specific packages (e.g. @esbuild/aix-ppc64) aren't always
+      # correctly flagged as optional for other OSes in that case, causing
+      # `npm ci` to fail with EBADPLATFORM on Linux runners. `npm install`
+      # correctly skips platform-mismatched optional deps instead.
+      - run: npm install
 
       - name: Run bulk Gmail import
         env:
